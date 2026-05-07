@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>Neon Abstract Overlay</title>
+<title>WebGL Neon VJ Overlay</title>
 <style>
     html, body {
         margin: 0;
@@ -11,151 +11,129 @@
         background: transparent;
     }
     canvas {
-        display: block;
         width: 100vw;
         height: 100vh;
+        display: block;
         background: transparent;
     }
 </style>
 </head>
 <body>
-<canvas id="c"></canvas>
+<canvas id="glcanvas"></canvas>
 
 <script>
-const canvas = document.getElementById("c");
-const ctx = canvas.getContext("2d", { alpha: true });
+const canvas = document.getElementById("glcanvas");
+const gl = canvas.getContext("webgl", { alpha: true });
 
 function resize() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
+    gl.viewport(0, 0, canvas.width, canvas.height);
 }
 resize();
 window.onresize = resize;
 
-let t = 0;
+const vertexShaderSource = `
+attribute vec2 a_position;
+void main() {
+    gl_Position = vec4(a_position, 0.0, 1.0);
+}
+`;
 
-function neon() {
-    const colors = ["#00ffff","#ff00ff","#ff0099","#9900ff","#00ff99","#ff6600","#0066ff"];
-    return colors[Math.floor(Math.random() * colors.length)];
+//
+// 🔥 FRAGMENT SHADER — TUNEL + WARP + PARTICULE + NEON + ABSTRACT
+//
+const fragmentShaderSource = `
+precision highp float;
+
+uniform float u_time;
+uniform vec2 u_res;
+
+vec3 neonPalette(float t) {
+    return 0.5 + 0.5 * cos(6.2831 * (vec3(0.2, 0.4, 0.6) * t + vec3(0.0, 0.33, 0.67)));
 }
 
-//
-// PARTICULE NEON (ușoare pentru CPU)
-//
-let particles = [];
-for (let i = 0; i < 40; i++) {
-    particles.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        s: Math.random() * 2 + 1,
-        a: Math.random() * Math.PI * 2
-    });
+void main() {
+    vec2 uv = (gl_FragCoord.xy - 0.5 * u_res.xy) / u_res.y;
+
+    float t = u_time * 0.3;
+
+    // 🔥 TUNEL
+    float r = length(uv);
+    float a = atan(uv.y, uv.x);
+
+    float tunnel = sin(10.0 * r - t * 4.0);
+
+    // 🔥 WARP / DISTORSIUNE
+    float warp = sin(a * 6.0 + t * 2.0) * 0.2;
+
+    // 🔥 PARTICULE
+    float particles = sin((uv.x + uv.y) * 20.0 + t * 5.0) * 0.1;
+
+    // 🔥 FASCICULE
+    float beams = smoothstep(0.01, 0.0, abs(sin(a * 12.0 + t * 3.0)) - 0.3);
+
+    // 🔥 COMBINARE
+    float v = tunnel + warp + particles + beams;
+
+    vec3 col = neonPalette(v + t);
+
+    gl_FragColor = vec4(col, 0.8); // transparent neon
+}
+`;
+
+function createShader(type, source) {
+    const shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    return shader;
 }
 
-function drawParticles() {
-    for (let p of particles) {
-        p.x += Math.cos(p.a) * p.s;
-        p.y += Math.sin(p.a) * p.s;
+const vs = createShader(gl.VERTEX_SHADER, vertexShaderSource);
+const fs = createShader(gl.FRAGMENT_SHADER, fragmentShaderSource);
 
-        if (p.x < 0) p.x = canvas.width;
-        if (p.x > canvas.width) p.x = 0;
-        if (p.y < 0) p.y = canvas.height;
-        if (p.y > canvas.height) p.y = 0;
+const program = gl.createProgram();
+gl.attachShader(program, vs);
+gl.attachShader(program, fs);
+gl.linkProgram(program);
+gl.useProgram(program);
 
-        ctx.fillStyle = neon();
-        ctx.globalAlpha = 0.7;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
-        ctx.fill();
-    }
+const positionBuffer = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+gl.bufferData(
+    gl.ARRAY_BUFFER,
+    new Float32Array([
+        -1, -1,
+         1, -1,
+        -1,  1,
+        -1,  1,
+         1, -1,
+         1,  1
+    ]),
+    gl.STATIC_DRAW
+);
+
+const positionLocation = gl.getAttribLocation(program, "a_position");
+gl.enableVertexAttribArray(positionLocation);
+gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+const timeLocation = gl.getUniformLocation(program, "u_time");
+const resLocation = gl.getUniformLocation(program, "u_res");
+
+let start = performance.now();
+
+function render() {
+    let now = performance.now();
+    let t = (now - start) * 0.001;
+
+    gl.uniform1f(timeLocation, t);
+    gl.uniform2f(resLocation, canvas.width, canvas.height);
+
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    requestAnimationFrame(render);
 }
 
-//
-// TUNEL 3D (cercuri animate, optimizate)
-//
-function drawTunnel() {
-    let cx = canvas.width / 2;
-    let cy = canvas.height / 2;
-
-    for (let i = 0; i < 12; i++) {
-        ctx.strokeStyle = neon();
-        ctx.lineWidth = 3;
-        ctx.globalAlpha = 0.4;
-
-        let r = Math.abs(i * 60 + (t * 2 % 200));
-
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.stroke();
-    }
-}
-
-//
-// FASCICULE LASER (puține, fluide)
-//
-function drawLasers() {
-    let cx = canvas.width / 2;
-    let cy = canvas.height / 2;
-
-    for (let i = 0; i < 8; i++) {
-        let angle = i * 0.8 + t * 0.01;
-        let len = canvas.width * 1.5;
-
-        let x2 = cx + Math.cos(angle) * len;
-        let y2 = cy + Math.sin(angle) * len;
-
-        ctx.strokeStyle = neon();
-        ctx.lineWidth = 4;
-        ctx.globalAlpha = 0.5;
-
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-    }
-}
-
-//
-// FORME ABSTRACTE (ușoare, organice)
-//
-function drawShapes() {
-    for (let i = 0; i < 6; i++) {
-        let cx = (i * 200 + t * 1.5) % canvas.width;
-        let cy = (i * 150 + t * 1.2) % canvas.height;
-
-        let size = 40 + Math.sin(t * 0.02 + i) * 20;
-
-        ctx.strokeStyle = neon();
-        ctx.lineWidth = 3;
-        ctx.globalAlpha = 0.6;
-
-        ctx.beginPath();
-        for (let a = 0; a < Math.PI * 2; a += Math.PI / 3) {
-            let x = cx + Math.cos(a + t * 0.01) * size;
-            let y = cy + Math.sin(a + t * 0.01) * size;
-            ctx.lineTo(x, y);
-        }
-        ctx.closePath();
-        ctx.stroke();
-    }
-}
-
-//
-// LOOP PRINCIPAL
-//
-function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    drawTunnel();
-    drawParticles();
-    drawLasers();
-    drawShapes();
-
-    t++;
-    requestAnimationFrame(draw);
-}
-
-draw();
+render();
 </script>
 </body>
 </html> 
