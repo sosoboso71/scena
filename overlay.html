@@ -1,0 +1,200 @@
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Transparent Neon Overlay</title>
+<style>
+    html, body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background: transparent;
+    }
+    canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+        background: transparent;
+    }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<script>
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d", { alpha: true });
+
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+resize();
+window.onresize = resize;
+
+let t = 0;
+let scene = 0;
+let lastSwitch = 0;
+
+function neon() {
+    const colors = [
+        "#00ffff", "#ff00ff", "#ff0099",
+        "#9900ff", "#00ff99", "#ff6600",
+        "#0066ff", "#ff0000", "#00ffea"
+    ];
+    return colors[Math.floor(Math.random() * colors.length)];
+}
+
+//
+// SCENA 1 — LASERE REALISTE PE TOT ECRANUL
+//
+function sceneLasers() {
+    for (let i = 0; i < 20; i++) {
+        let angle = (i * 0.3) + (t * 0.015);
+        let length = canvas.width * 2;
+
+        let x1 = canvas.width / 2;
+        let y1 = canvas.height / 2;
+
+        let x2 = x1 + Math.cos(angle) * length;
+        let y2 = y1 + Math.sin(angle) * length;
+
+        // Glow mare
+        ctx.strokeStyle = neon();
+        ctx.lineWidth = 30;
+        ctx.globalAlpha = 0.12;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+
+        // Glow mic
+        ctx.strokeStyle = neon();
+        ctx.lineWidth = 14;
+        ctx.globalAlpha = 0.35;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+
+        // Miez laser
+        ctx.strokeStyle = neon();
+        ctx.lineWidth = 4;
+        ctx.globalAlpha = 1;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+    }
+}
+
+//
+// SCENA 2 — TUNEL 3D NEON (UMPLE TOT ECRANUL)
+//
+function sceneTunnel() {
+    let cx = canvas.width / 2;
+    let cy = canvas.height / 2;
+
+    for (let i = 0; i < 30; i++) {
+        ctx.strokeStyle = neon();
+        ctx.lineWidth = 4;
+
+        let radius = Math.abs(i * 50 + Math.sin(t * 0.05) * 40);
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+}
+
+//
+// SCENA 3 — FORME GEOMETRICE PE TOT ECRANUL (NU DOAR ÎN CENTRU)
+//
+function sceneShapes() {
+    for (let i = 0; i < 12; i++) {
+        ctx.strokeStyle = neon();
+        ctx.lineWidth = 4;
+
+        let size = 60 + Math.sin(t * 0.03 + i) * 40;
+        let angle = t * 0.01 + i;
+
+        let cx = (i * 200 + t * 2) % canvas.width;
+        let cy = (i * 150 + t * 3) % canvas.height;
+
+        ctx.beginPath();
+        for (let a = 0; a < Math.PI * 2; a += Math.PI / 3) {
+            let x = cx + Math.cos(a + angle) * size;
+            let y = cy + Math.sin(a + angle) * size;
+            ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.stroke();
+    }
+}
+
+//
+// SCENA 4 — CERCURI NEON PE MARGINI
+//
+function sceneCircles() {
+    for (let i = 0; i < 20; i++) {
+        ctx.strokeStyle = neon();
+        ctx.lineWidth = 6;
+
+        let radius = 80 + Math.sin(t * 0.03 + i) * 40;
+
+        ctx.beginPath();
+        ctx.arc(
+            (i * 120 + t * 2) % canvas.width,
+            (i * 80 + t * 3) % canvas.height,
+            Math.abs(radius),
+            0,
+            Math.PI * 2
+        );
+        ctx.stroke();
+    }
+}
+
+//
+// SCENA 5 — CONFETTI + EXPLOZII NEON
+//
+function sceneConfetti() {
+    for (let i = 0; i < 120; i++) {
+        ctx.fillStyle = neon();
+        let angle = Math.random() * Math.PI * 2;
+        let speed = Math.random() * 6 + 2;
+        let r = (t * speed + i * 20) % (canvas.width * 0.9);
+
+        let x = canvas.width / 2 + Math.cos(angle) * r;
+        let y = canvas.height / 2 + Math.sin(angle) * r;
+
+        ctx.beginPath();
+        ctx.arc(x, y, 6, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+//
+// LOOP PRINCIPAL
+//
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (t - lastSwitch > 300) {
+        scene = (scene + 1) % 5;
+        lastSwitch = t;
+    }
+
+    if (scene === 0) sceneLasers();
+    if (scene === 1) sceneTunnel();
+    if (scene === 2) sceneShapes();
+    if (scene === 3) sceneCircles();
+    if (scene === 4) sceneConfetti();
+
+    t++;
+    requestAnimationFrame(draw);
+}
+
+draw();
+</script>
+</body>
+</html>
