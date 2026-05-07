@@ -1,8 +1,8 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Transparent Neon Overlay</title>
+<title>Neon Abstract Overlay</title>
 <style>
     html, body {
         margin: 0;
@@ -33,143 +33,110 @@ resize();
 window.onresize = resize;
 
 let t = 0;
-let scene = 0;
-let lastSwitch = 0;
 
 function neon() {
-    const colors = [
-        "#00ffff", "#ff00ff", "#ff0099",
-        "#9900ff", "#00ff99", "#ff6600",
-        "#0066ff", "#ff0000", "#00ffea"
-    ];
+    const colors = ["#00ffff","#ff00ff","#ff0099","#9900ff","#00ff99","#ff6600","#0066ff"];
     return colors[Math.floor(Math.random() * colors.length)];
 }
 
 //
-// SCENA 1 — LASERE REALISTE PE TOT ECRANUL
+// PARTICULE NEON (ușoare pentru CPU)
 //
-function sceneLasers() {
-    for (let i = 0; i < 20; i++) {
-        let angle = (i * 0.3) + (t * 0.015);
-        let length = canvas.width * 2;
+let particles = [];
+for (let i = 0; i < 40; i++) {
+    particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        s: Math.random() * 2 + 1,
+        a: Math.random() * Math.PI * 2
+    });
+}
 
-        let x1 = canvas.width / 2;
-        let y1 = canvas.height / 2;
+function drawParticles() {
+    for (let p of particles) {
+        p.x += Math.cos(p.a) * p.s;
+        p.y += Math.sin(p.a) * p.s;
 
-        let x2 = x1 + Math.cos(angle) * length;
-        let y2 = y1 + Math.sin(angle) * length;
+        if (p.x < 0) p.x = canvas.width;
+        if (p.x > canvas.width) p.x = 0;
+        if (p.y < 0) p.y = canvas.height;
+        if (p.y > canvas.height) p.y = 0;
 
-        // Glow mare
-        ctx.strokeStyle = neon();
-        ctx.lineWidth = 30;
-        ctx.globalAlpha = 0.12;
+        ctx.fillStyle = neon();
+        ctx.globalAlpha = 0.7;
         ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-
-        // Glow mic
-        ctx.strokeStyle = neon();
-        ctx.lineWidth = 14;
-        ctx.globalAlpha = 0.35;
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-
-        // Miez laser
-        ctx.strokeStyle = neon();
-        ctx.lineWidth = 4;
-        ctx.globalAlpha = 1;
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
+        ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+        ctx.fill();
     }
 }
 
 //
-// SCENA 2 — TUNEL 3D NEON (UMPLE TOT ECRANUL)
+// TUNEL 3D (cercuri animate, optimizate)
 //
-function sceneTunnel() {
+function drawTunnel() {
     let cx = canvas.width / 2;
     let cy = canvas.height / 2;
 
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 12; i++) {
         ctx.strokeStyle = neon();
-        ctx.lineWidth = 4;
+        ctx.lineWidth = 3;
+        ctx.globalAlpha = 0.4;
 
-        let radius = Math.abs(i * 50 + Math.sin(t * 0.05) * 40);
+        let r = Math.abs(i * 60 + (t * 2 % 200));
 
         ctx.beginPath();
-        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
         ctx.stroke();
     }
 }
 
 //
-// SCENA 3 — FORME GEOMETRICE PE TOT ECRANUL (NU DOAR ÎN CENTRU)
+// FASCICULE LASER (puține, fluide)
 //
-function sceneShapes() {
-    for (let i = 0; i < 12; i++) {
+function drawLasers() {
+    let cx = canvas.width / 2;
+    let cy = canvas.height / 2;
+
+    for (let i = 0; i < 8; i++) {
+        let angle = i * 0.8 + t * 0.01;
+        let len = canvas.width * 1.5;
+
+        let x2 = cx + Math.cos(angle) * len;
+        let y2 = cy + Math.sin(angle) * len;
+
         ctx.strokeStyle = neon();
         ctx.lineWidth = 4;
+        ctx.globalAlpha = 0.5;
 
-        let size = 60 + Math.sin(t * 0.03 + i) * 40;
-        let angle = t * 0.01 + i;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+    }
+}
 
-        let cx = (i * 200 + t * 2) % canvas.width;
-        let cy = (i * 150 + t * 3) % canvas.height;
+//
+// FORME ABSTRACTE (ușoare, organice)
+//
+function drawShapes() {
+    for (let i = 0; i < 6; i++) {
+        let cx = (i * 200 + t * 1.5) % canvas.width;
+        let cy = (i * 150 + t * 1.2) % canvas.height;
+
+        let size = 40 + Math.sin(t * 0.02 + i) * 20;
+
+        ctx.strokeStyle = neon();
+        ctx.lineWidth = 3;
+        ctx.globalAlpha = 0.6;
 
         ctx.beginPath();
         for (let a = 0; a < Math.PI * 2; a += Math.PI / 3) {
-            let x = cx + Math.cos(a + angle) * size;
-            let y = cy + Math.sin(a + angle) * size;
+            let x = cx + Math.cos(a + t * 0.01) * size;
+            let y = cy + Math.sin(a + t * 0.01) * size;
             ctx.lineTo(x, y);
         }
         ctx.closePath();
         ctx.stroke();
-    }
-}
-
-//
-// SCENA 4 — CERCURI NEON PE MARGINI
-//
-function sceneCircles() {
-    for (let i = 0; i < 20; i++) {
-        ctx.strokeStyle = neon();
-        ctx.lineWidth = 6;
-
-        let radius = 80 + Math.sin(t * 0.03 + i) * 40;
-
-        ctx.beginPath();
-        ctx.arc(
-            (i * 120 + t * 2) % canvas.width,
-            (i * 80 + t * 3) % canvas.height,
-            Math.abs(radius),
-            0,
-            Math.PI * 2
-        );
-        ctx.stroke();
-    }
-}
-
-//
-// SCENA 5 — CONFETTI + EXPLOZII NEON
-//
-function sceneConfetti() {
-    for (let i = 0; i < 120; i++) {
-        ctx.fillStyle = neon();
-        let angle = Math.random() * Math.PI * 2;
-        let speed = Math.random() * 6 + 2;
-        let r = (t * speed + i * 20) % (canvas.width * 0.9);
-
-        let x = canvas.width / 2 + Math.cos(angle) * r;
-        let y = canvas.height / 2 + Math.sin(angle) * r;
-
-        ctx.beginPath();
-        ctx.arc(x, y, 6, 0, Math.PI * 2);
-        ctx.fill();
     }
 }
 
@@ -179,16 +146,10 @@ function sceneConfetti() {
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    if (t - lastSwitch > 300) {
-        scene = (scene + 1) % 5;
-        lastSwitch = t;
-    }
-
-    if (scene === 0) sceneLasers();
-    if (scene === 1) sceneTunnel();
-    if (scene === 2) sceneShapes();
-    if (scene === 3) sceneCircles();
-    if (scene === 4) sceneConfetti();
+    drawTunnel();
+    drawParticles();
+    drawLasers();
+    drawShapes();
 
     t++;
     requestAnimationFrame(draw);
@@ -197,4 +158,4 @@ function draw() {
 draw();
 </script>
 </body>
-</html>
+</html> 
